@@ -1,7 +1,10 @@
+using System;
+using UnityEditor.Callbacks;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using UnityEngine.Scripting.APIUpdating;
 
-[RequireComponent(typeof(Rigidbody))]
+[RequireComponent(typeof(Rigidbody), typeof(Animator))]
 public class PlayerMove : MonoBehaviour
 {
     private Transform _cam;
@@ -9,21 +12,53 @@ public class PlayerMove : MonoBehaviour
     private InputAction _move;
     private InputAction _jump;
     private Rigidbody _rb;
+    private Animator _anim;
+    [SerializeField] private GameObject _playerGFX;
 
     [SerializeField] private float _moveSpeed = 7f;
+    [SerializeField] private float _jumpForse = 10f;
     [SerializeField] private float _rotationStep = 0.1f;
     private float _rotationVelocity;
+
+    [SerializeField] private Transform _footPos;
+    [SerializeField] private LayerMask _isGround;
+
+    [SerializeField] private Transform _ledgeCheckPos;
+    [SerializeField] private Transform _climbPos;
+    [SerializeField] private LayerMask _isSolid;
 
     private void Awake()
     {
         _gameInputs = new GameInputs();
         _rb = GetComponent<Rigidbody>();
         _cam = Camera.main.transform;
+        _anim = GetComponent<Animator>();
     }
 
     void Update()
     {
         ReadMoveInputs();
+        if (!CheckGround())
+        {
+            if (_rb.velocity.y < -0.1f)
+            {
+                _anim.SetBool("Falling", true);
+
+                if (CheckLedge())
+                {
+                    // LedgeClimb();
+                }
+            }
+            else
+            {
+                _anim.SetBool("InAir", true);
+            }
+        }
+        else
+        {
+            _anim.SetBool("InAir", false);
+            _anim.SetBool("Falling", false);
+        }    
     }
 
     private void OnEnable()
@@ -31,45 +66,76 @@ public class PlayerMove : MonoBehaviour
         _gameInputs.Enable();
         _move = _gameInputs.Gameplay.Move;
         _jump = _gameInputs.Gameplay.Jump;
-
-        _jump.performed += OnPlayerJump;
+        _jump.performed += context => Jump();
     }
 
     private void OnDisable()
     {
-        _jump.performed -= OnPlayerJump;
-
+        _jump.performed -= context => Jump();
         _gameInputs.Disable();
     }
 
-    private void OnPlayerJump(InputAction.CallbackContext context)
+    private bool CheckGround()
     {
-        Jump();
+        Vector3 origin = new Vector3(transform.position.x, transform.position.y + 0.5f, transform.position.z);
+        if (_footPos) origin = _footPos.position;
+        return Physics.Raycast(origin, Vector3.down, 0.7f, _isGround);
     }
 
     private void ReadMoveInputs()
     {
         Vector2 inputDirection = _move.ReadValue<Vector2>();
+        if (inputDirection.magnitude >= 0.1f) _anim.SetBool("IsRunning", true);
+        else _anim.SetBool("IsRunning", false);
         Move(inputDirection);
     }
 
     private void Move(Vector2 inputVector)
     {
-        Vector3 Direction = new Vector3(inputVector.x, 0f, inputVector.y);
-        //transform.LookAt(transform.position + moveDirection);
-        if (Direction.magnitude >= 0.1f)
-        {
-            float targetAngle = Mathf.Atan2(Direction.x, Direction.z) * Mathf.Rad2Deg + _cam.eulerAngles.y;
-            float angle = Mathf.SmoothDampAngle(transform.eulerAngles.y, targetAngle, ref _rotationVelocity, _rotationStep);
-            transform.rotation = Quaternion.Euler(0f, angle, 0f);
-            Vector3 moveDirection = Quaternion.Euler(0f, targetAngle, 0f) * Vector3.forward;
-            _rb.MovePosition(transform.position + moveDirection * _moveSpeed * Time.deltaTime);
-        }
+        inputVector *= _moveSpeed;
+        Vector3 moveDirection = _cam.forward * inputVector.y + _cam.right * inputVector.x;
 
+
+        _rb.velocity = new Vector3(moveDirection.x, _rb.velocity.y, moveDirection.z);
+
+        if (inputVector.magnitude > 0.01f)
+        {
+            _playerGFX.transform.forward = new Vector3(_rb.velocity.x, 0f, _rb.velocity.z);
+        }
     }
 
     private void Jump()
     {
+        if (CheckGround())
+        {
+            _anim.SetTrigger("Jump");
+            _rb.AddForce(Vector3.up * _jumpForse);
+        }
+    }
 
+    private void LedgeClimb()
+    {
+        Debug.Log("Ledge");
+        Vector3 origin = new Vector3(transform.position.x, transform.position.y + 3f, transform.position.z + 1f);
+        if (_climbPos) origin = _climbPos.position;
+        if (!Physics.Raycast(origin, Vector3.up, 3.1f, _isSolid))
+        {
+            Debug.Log("HaveSpase");
+            _anim.SetTrigger("Climbing");
+            _rb.useGravity = false;
+        }
+    }
+
+    public void MoveToClimbPos()
+    {
+        transform.position = _climbPos.position;
+        _rb.useGravity = true;
+    }
+
+    private bool CheckLedge()
+    {
+        Vector3 origin = new Vector3(transform.position.x, transform.position.y + 2f, transform.position.z);
+        if (_ledgeCheckPos) origin = _ledgeCheckPos.position;
+        return Physics.Raycast(origin, Vector3.forward, 0.7f, _isGround);
     }
 }
