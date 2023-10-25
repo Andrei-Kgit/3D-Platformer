@@ -1,26 +1,35 @@
-using System;
-using UnityEditor.Callbacks;
 using UnityEngine;
 using UnityEngine.InputSystem;
-using UnityEngine.Scripting.APIUpdating;
 
 [RequireComponent(typeof(Rigidbody), typeof(Animator))]
 public class PlayerMove : MonoBehaviour
 {
-    private Transform _cam;
+    [Header("Inputs")]
     private GameInputs _gameInputs;
-    private InputAction _move;
-    private InputAction _jump;
+    private InputAction _moveInputs;
+    private InputAction _jumpInputs;
+
+    [Header("Components")]
+    private Transform _cam;
     private Rigidbody _rb;
     private Animator _anim;
     [SerializeField] private GameObject _playerGFX;
 
+    [Header("Moving")]
     [SerializeField] private float _moveSpeed = 7f;
-    [SerializeField] private float _jumpForce = 10f;
+    private Vector3 _normal;
 
+    [Header("Jumping")]
+    [SerializeField] private float _jumpForce = 10f;
+    [SerializeField] private float _jumpScale = 1.5f;
+    [SerializeField] private float _jumpScaleLowBorder = -7f;
+    [SerializeField] private float _jumpScaleHighBorder = 0f;
+    [SerializeField] private float _reqInAirTime = 0.5f;
+    private float _inAirTime;
+
+    [Header("Checking")]
     [SerializeField] private Transform _footPos;
     [SerializeField] private LayerMask _isGround;
-
     [SerializeField] private Transform _ledgeCheckPos;
     [SerializeField] private Transform _climbPos;
     [SerializeField] private LayerMask _isSolid;
@@ -51,25 +60,45 @@ public class PlayerMove : MonoBehaviour
             {
                 _anim.SetBool("InAir", true);
             }
+            _inAirTime += Time.deltaTime;
         }
         else
         {
             _anim.SetBool("InAir", false);
             _anim.SetBool("Falling", false);
-        }    
+            _inAirTime = 0f;
+        }
+
+        if (_rb.velocity.y < _jumpScaleHighBorder && _rb.velocity.y > _jumpScaleLowBorder)
+        {
+            _rb.velocity += Vector3.up * Physics.gravity.y * _jumpScale * Time.deltaTime;
+        }
+        if (_jumpInputs.WasReleasedThisFrame() && _rb.velocity.y > 0.01f)
+        {
+            _rb.velocity = new Vector3(_rb.velocity.x, 0, _rb.velocity.z);
+            if (_inAirTime < _reqInAirTime)
+            {
+                _anim.SetTrigger("AirSkip");
+            }
+        }
+    }
+
+    private void OnCollisionEnter(Collision other)
+    {
+        _normal = other.GetContact(0).normal;
     }
 
     private void OnEnable()
     {
         _gameInputs.Enable();
-        _move = _gameInputs.Gameplay.Move;
-        _jump = _gameInputs.Gameplay.Jump;
-        _jump.performed += context => Jump();
+        _moveInputs = _gameInputs.Gameplay.Move;
+        _jumpInputs = _gameInputs.Gameplay.Jump;
+        _jumpInputs.performed += context => Jump();
     }
 
     private void OnDisable()
     {
-        _jump.performed -= context => Jump();
+        _jumpInputs.performed -= context => Jump();
         _gameInputs.Disable();
     }
 
@@ -82,7 +111,7 @@ public class PlayerMove : MonoBehaviour
 
     private void ReadMoveInputs()
     {
-        Vector2 inputDirection = _move.ReadValue<Vector2>();
+        Vector2 inputDirection = _moveInputs.ReadValue<Vector2>();
         if (inputDirection.magnitude >= 0.1f) _anim.SetBool("IsRunning", true);
         else _anim.SetBool("IsRunning", false);
         Vector3 direction = new Vector3(inputDirection.x, 0f, inputDirection.y);
@@ -93,7 +122,7 @@ public class PlayerMove : MonoBehaviour
     {
         Vector3 moveDirection = _cam.forward * inputVector.z + _cam.right * inputVector.x;
         moveDirection.y = _rb.velocity.y / _moveSpeed;
-        //Vector3 moveVelocity = new Vector3(moveDirection.x, _rb.velocity.y, moveDirection.z);
+
         _rb.velocity = moveDirection * _moveSpeed;
 
         if (inputVector.magnitude > 0.01f)
