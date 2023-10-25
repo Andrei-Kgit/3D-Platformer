@@ -1,0 +1,3 @@
+Blender: 3D-Модели, риггинг, анимации
+Inkscape: 2D
+Unity cinemachine: движение камеры
