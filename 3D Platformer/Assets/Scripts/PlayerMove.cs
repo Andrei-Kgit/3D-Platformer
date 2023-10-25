@@ -16,9 +16,7 @@ public class PlayerMove : MonoBehaviour
     [SerializeField] private GameObject _playerGFX;
 
     [SerializeField] private float _moveSpeed = 7f;
-    [SerializeField] private float _jumpForse = 10f;
-    [SerializeField] private float _rotationStep = 0.1f;
-    private float _rotationVelocity;
+    [SerializeField] private float _jumpForce = 10f;
 
     [SerializeField] private Transform _footPos;
     [SerializeField] private LayerMask _isGround;
@@ -87,16 +85,16 @@ public class PlayerMove : MonoBehaviour
         Vector2 inputDirection = _move.ReadValue<Vector2>();
         if (inputDirection.magnitude >= 0.1f) _anim.SetBool("IsRunning", true);
         else _anim.SetBool("IsRunning", false);
-        Move(inputDirection);
+        Vector3 direction = new Vector3(inputDirection.x, 0f, inputDirection.y);
+        Move(direction);
     }
 
-    private void Move(Vector2 inputVector)
+    private void Move(Vector3 inputVector)
     {
-        inputVector *= _moveSpeed;
-        Vector3 moveDirection = _cam.forward * inputVector.y + _cam.right * inputVector.x;
-
-
-        _rb.velocity = new Vector3(moveDirection.x, _rb.velocity.y, moveDirection.z);
+        Vector3 moveDirection = _cam.forward * inputVector.z + _cam.right * inputVector.x;
+        moveDirection.y = _rb.velocity.y / _moveSpeed;
+        //Vector3 moveVelocity = new Vector3(moveDirection.x, _rb.velocity.y, moveDirection.z);
+        _rb.velocity = moveDirection * _moveSpeed;
 
         if (inputVector.magnitude > 0.01f)
         {
@@ -109,7 +107,7 @@ public class PlayerMove : MonoBehaviour
         if (CheckGround())
         {
             _anim.SetTrigger("Jump");
-            _rb.AddForce(Vector3.up * _jumpForse);
+            _rb.AddForce(Vector3.up * _jumpForce, ForceMode.VelocityChange);
         }
     }
 

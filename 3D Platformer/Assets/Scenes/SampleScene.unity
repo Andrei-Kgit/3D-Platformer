@@ -3259,7 +3259,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 671936637}
   serializedVersion: 2
-  m_LocalRotation: {x: 0.21966274, y: 1.7354394e-16, z: 2.2853005e-16, w: 0.9755759}
+  m_LocalRotation: {x: 0.21966273, y: -0.000000029074432, z: 0.0000000065464603, w: 0.9755759}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
@@ -4523,9 +4523,9 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 1039669191}
+  - component: {fileID: 1039669192}
   - component: {fileID: 1039669190}
   - component: {fileID: 1039669189}
-  - component: {fileID: 1039669192}
   - component: {fileID: 1039669193}
   m_Layer: 0
   m_Name: Player
@@ -4617,7 +4617,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   _playerGFX: {fileID: 1353655563}
   _moveSpeed: 10
-  _jumpForse: 300
+  _jumpForce: 10
   _rotationStep: 0.1
   _footPos: {fileID: 1016548332}
   _isGround:
